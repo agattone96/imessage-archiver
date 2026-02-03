@@ -23,6 +23,11 @@ fi
 echo "🚀 Moving App to $INSTALL_DIR..."
 cp -R "$SOURCE_APP" "$INSTALL_DIR/"
 
+# 4. Refresh Icon Cache
+echo "🔄 Refreshing Icon Cache..."
+touch "$INSTALL_DIR/$APP_NAME"
+killall Dock
+
 # 4. Verify
 if [[ -d "$INSTALL_DIR/$APP_NAME" ]]; then
     echo "

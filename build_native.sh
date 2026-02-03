@@ -66,6 +66,7 @@ cp -r backend "$SRC_DIR/"
 cp dashboard.py "$SRC_DIR/"
 cp -r bin "$SRC_DIR/"
 cp requirements.txt "$SRC_DIR/"
+cp app_icon.png "$SRC_DIR/"
 # Copy asset files if they exist
 [ -f metadata.json ] && cp metadata.json "$SRC_DIR/"
 

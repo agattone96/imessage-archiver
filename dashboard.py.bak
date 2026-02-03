@@ -35,185 +35,42 @@ def get_alt():
 # --- CUSTOM CSS ---
 ST_STYLE = """
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
 
-    :root {
-      /* Base */
-      --bg0: #05060b;
-      --bg1: #070912;
-      --bg2: #0b0e1a;
-
-      /* Accents */
-      --pink: #ff2aa8;
-      --pink2: #ff54da;
-      --violet: #7b5cff;
-      --cyan: #34f2ff;
-
-      /* Surfaces */
-      --panel: rgba(18, 16, 28, 0.54);
-      --panel2: rgba(10, 10, 18, 0.32);
-      --stroke: rgba(255, 255, 255, 0.12);
-      --stroke2: rgba(255, 255, 255, 0.07);
-
-      --text: rgba(255, 255, 255, 0.9);
-      --muted: rgba(255, 255, 255, 0.62);
-
-      --radius: 26px;
-      --btn: 46px;
-
-      /* Shadows + glow */
-      --shadow: 0 18px 62px rgba(0, 0, 0, 0.58),
-        0 1px 0 rgba(255, 255, 255, 0.06) inset;
-
-      --glow-soft: 0 0 16px rgba(255, 42, 168, 0.22),
-        0 0 44px rgba(255, 42, 168, 0.12);
-
-      --glow-mid: 0 0 18px rgba(255, 42, 168, 0.34),
-        0 0 64px rgba(255, 42, 168, 0.16);
-
-      /* Safe-area */
-      --dock-bottom: max(22px, env(safe-area-inset-bottom));
-    }
-
-    * { box-sizing: border-box; }
-
+    /* MAIN CONTAINER & VIGNETTE */
     .stApp {
-        background: radial-gradient(
-          1200px 700px at 50% 12%,
-          rgba(255, 42, 168, 0.16),
-          transparent 60%
-        ),
-        radial-gradient(
-          900px 600px at 20% 86%,
-          rgba(123, 92, 255, 0.14),
-          transparent 58%
-        ),
-        radial-gradient(
-          750px 520px at 90% 78%,
-          rgba(52, 242, 255, 0.08),
-          transparent 60%
-        ),
-        linear-gradient(180deg, var(--bg0), var(--bg2)) !important;
-        color: var(--text);
-        font-family: 'Outfit', ui-sans-serif, system-ui, -apple-system, sans-serif !important;
+        background: #0D1117;
+        background: radial-gradient(circle at center, #161b22 0%, #0D1117 100%);
+        color: #C9D1D9;
+        font-family: 'Inter', -apple-system, sans-serif;
+    }
+    
+    /* HIDE ANCHOR LINKS */
+    .stApp a.step-down, .stApp a.step-up, .element-container:hover a.anchor, .element-container a.anchor {
+        display: none !important;
     }
 
-    /* HIDE STREAMLIT ELEMENTS */
-    header, [data-testid="stHeader"], [data-testid="stFooter"] { visibility: hidden; }
-    #MainMenu, footer { display: none !important; }
-
-    .ui-stage {
-      position: relative;
-      width: 100%;
-      min-height: 100svh;
-      padding: 22px;
-      z-index: 1;
-    }
-
-    .ui-bg-overlay {
-      position: fixed;
-      inset: -60px;
-      pointer-events: none;
-      opacity: 0.92;
-      background: radial-gradient(
-          900px 260px at 50% 114%,
-          rgba(255, 42, 168, 0.1),
-          transparent 62%
-        ),
-        radial-gradient(
-          820px 280px at 50% 120%,
-          rgba(255, 42, 168, 0.08),
-          transparent 60%
-        ),
-        linear-gradient(0deg, rgba(0, 0, 0, 0.28), transparent 45%);
-      filter: blur(0.25px);
-      z-index: 0;
-    }
-
-    /* Status Chip */
-    .status-chip {
-      position: fixed;
-      left: 50%;
-      top: 24px;
-      transform: translateX(-50%);
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      border-radius: 999px;
-      background: rgba(10, 10, 14, 0.5);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 14px 38px rgba(0, 0, 0, 0.45);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      z-index: 999999;
-    }
-    .status-value::before {
-      content: "";
-      width: 8px;
-      height: 8px;
-      display: inline-block;
-      border-radius: 99px;
-      margin-right: 8px;
-      background: var(--pink);
-      box-shadow: 0 0 12px rgba(255, 42, 168, 0.72);
-      vertical-align: middle;
-    }
-
-    /* Panels */
-    .glass-panel {
-        background: var(--panel);
-        backdrop-filter: blur(18px);
-        -webkit-backdrop-filter: blur(18px);
-        border: 1px solid var(--stroke);
-        border-radius: var(--radius);
-        padding: 32px;
-        box-shadow: var(--shadow);
-    }
-
-    /* Sidebar / Sidebar Nav */
-    section[data-testid="stSidebar"] {
-        background-color: rgba(5, 6, 11, 0.8) !important;
-        border-right: 1px solid var(--stroke);
-        backdrop-filter: blur(20px);
-    }
-
-    /* Metric Cards */
-    .metric-card {
-        background: var(--panel2);
-        border: 1px solid var(--stroke2);
+    /* FROSTED PANELS */
+    .vault-panel {
+        background: rgba(22, 27, 34, 0.7);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 16px;
-        padding: 16px;
-        text-align: center;
-    }
-    .metric-value {
-        font-size: 24px;
-        font-weight: 800;
-        color: var(--pink);
-        text-shadow: 0 0 12px rgba(255, 42, 168, 0.3);
-    }
-    .metric-label {
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: var(--muted);
+        padding: 40px;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
     }
 
-    /* Chat Bubbles */
-    .msg-row.me .bubble {
-        background: linear-gradient(135deg, var(--pink), var(--pink2));
-        color: white !important;
-        border-radius: 18px 18px 4px 18px;
-        box-shadow: 0 10px 20px rgba(255, 42, 168, 0.15);
-    }
-    .msg-row.them .bubble {
-        background: var(--panel);
-        border: 1px solid var(--stroke);
-        color: var(--text);
-        border-radius: 18px 18px 18px 4px;
+    /* TRUST CARD */
+    .trust-card {
+        background: rgba(22, 27, 34, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 24px;
+        margin: 24px 0;
     }
 
-    /* Timeline */
+    /* TIMELINE RAIL */
     .timeline-container {
         position: relative;
         padding-left: 32px;
@@ -225,7 +82,7 @@ ST_STYLE = """
         top: 0;
         bottom: 0;
         width: 2px;
-        background: linear-gradient(to bottom, var(--pink), rgba(255, 42, 168, 0.05));
+        background: linear-gradient(to bottom, #58a6ff, rgba(88, 166, 255, 0.05));
     }
     .timeline-step {
         position: relative;
@@ -239,19 +96,19 @@ ST_STYLE = """
         width: 14px;
         height: 14px;
         border-radius: 50%;
-        background: var(--bg0);
-        border: 2px solid var(--stroke);
+        background: #0D1117;
+        border: 2px solid #30363D;
         z-index: 2;
         transition: all 0.3s ease;
     }
     .timeline-step.active .timeline-dot {
-        background: var(--pink) !important;
-        border-color: var(--pink) !important;
-        box-shadow: 0 0 12px var(--pink) !important;
+        background: #58a6ff;
+        border-color: #58a6ff;
+        box-shadow: 0 0 12px rgba(88, 166, 255, 0.6);
     }
     .timeline-step.done .timeline-dot {
-        background: var(--cyan);
-        border-color: var(--cyan);
+        background: #238636;
+        border-color: #238636;
     }
     .timeline-label {
         font-size: 14px;
@@ -260,38 +117,24 @@ ST_STYLE = """
     }
     .timeline-desc {
         font-size: 12px;
-        color: var(--muted);
+        color: #8B949E;
     }
 
-    /* Floating Toolbar Simulation */
-    .neo-toolbar-mock {
-      position: fixed;
-      left: 50%;
-      bottom: 32px;
-      transform: translateX(-50%);
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 24px;
-      border-radius: 99px;
-      border: 1px solid var(--stroke);
-      background: linear-gradient(180deg, var(--panel), var(--panel2));
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(16px);
-      animation: floaty 5.8s ease-in-out infinite;
+    /* PREVIEW PANE */
+    .preview-container {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        overflow: hidden;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        background: #161B22;
+        position: relative;
     }
-
-    @keyframes floaty {
-      0%, 100% { transform: translateX(-50%) translateY(0); }
-      50% { transform: translateX(-50%) translateY(-5px); }
+    .preview-blur {
+        filter: blur(8px);
+        transform: scale(1.05);
+        opacity: 0.6;
     }
 </style>
-<div class="ui-bg-overlay"></div>
-<div class="status-chip">
-    <span style="color: var(--muted); font-size: 12px;">SYSTEM</span>
-    <span class="status-value" style="font-weight: 700; font-size: 12px;">ENCRYPTED & LOCAL</span>
-</div>
 """
 st.markdown(ST_STYLE, unsafe_allow_html=True)
 
@@ -346,25 +189,25 @@ def render_onboarding(onboard_metadata):
             st.markdown("# Initialize your iMessage archive.")
             st.markdown("Export, index, and browse locally.  \nNo cloud. No tracking.")
             
-            # Trust Card
+            # Trust Card (Using Streamlit container and columns instead of raw HTML for data)
             with st.container():
-                st.markdown('<div class="glass-panel" style="padding: 24px; margin: 24px 0;">', unsafe_allow_html=True)
+                st.markdown('<div class="trust-card">', unsafe_allow_html=True)
                 st.caption("PRIVACY COMMITMENTS")
                 
-                tr1, tr2 = st.columns([0.1, 0.9])
-                tr1.markdown("✅")
-                tr2.markdown(f"**Local-only processing**  \n<small style='color:var(--muted)'>Messages never leave this machine.</small>", unsafe_allow_html=True)
+                c1, c2 = st.columns([0.1, 0.9])
+                c1.markdown("✅")
+                c2.markdown("**Local-only processing**  \n<small style='color:#8B949E'>Messages never leave this machine.</small>", unsafe_allow_html=True)
                 
-                tr1, tr2 = st.columns([0.1, 0.9])
-                tr1.markdown("✅")
-                tr2.markdown(f"**Stored on this Mac**  \n<small style='color:var(--muted)'>Saved to your secure ~/Analyzed folder.</small>", unsafe_allow_html=True)
+                c1, c2 = st.columns([0.1, 0.9])
+                c1.markdown("✅")
+                c2.markdown("**Stored on this Mac**  \n<small style='color:#8B949E'>Saved to your secure ~/Analyzed folder.</small>", unsafe_allow_html=True)
                 
-                tr1, tr2 = st.columns([0.1, 0.9])
-                tr1.markdown("✅")
-                tr2.markdown(f"**Read-only access**  \n<small style='color:var(--muted)'>Archiver cannot modify your data.</small>", unsafe_allow_html=True)
+                c1, c2 = st.columns([0.1, 0.9])
+                c1.markdown("✅")
+                c2.markdown("**Read-only access**  \n<small style='color:#8B949E'>Archiver cannot modify your data.</small>", unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
-            st.markdown("<p style='font-size: 14px; color: var(--muted); margin-bottom: 24px;'>Next you’ll grant access to Messages and attachments so the archive can be built locally.</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size: 14px; color: #8B949E; margin-bottom: 24px;'>Next you’ll grant access to Messages and attachments so the archive can be built locally.</p>", unsafe_allow_html=True)
             
             col_cta1, col_cta2 = st.columns(2)
             if col_cta1.button("Initialize Archive", type="primary", use_container_width=True):
@@ -376,20 +219,20 @@ def render_onboarding(onboard_metadata):
             st.markdown("</div>", unsafe_allow_html=True)
 
         elif step == 2:
-            st.markdown(f"""
-            <div class="glass-panel" style="margin-top: 40px;">
+            st.markdown("""
+            <div class="vault-panel" style="margin-top: 40px;">
                 <h2 style="color: #ffffff; margin-bottom: 20px;">🔒 Full Disk Access</h2>
                 <p style="color: #c9d1d9; margin-bottom: 24px;">To read your messages, the app needs permission to access your Library folder.</p>
                 
-                <div style="background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; border: 1px solid var(--stroke2);">
-                    <ol style="color: var(--muted); line-height: 1.8; margin-bottom: 0;">
+                <div style="background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; border: 1px solid #30363D;">
+                    <ol style="color: #8B949E; line-height: 1.8; margin-bottom: 0;">
                         <li>Open <b style="color:white">System Settings</b>.</li>
                         <li>Go to <b style="color:white">Privacy & Security</b> > <b style="color:white">Full Disk Access</b>.</li>
                         <li>Grant access to your <b>Terminal</b> or <b>IDE</b> (e.g., Terminal, iTerm, VS Code).</li>
                     </ol>
                 </div>
                 
-                <p style="font-size: 12px; color: var(--cyan); margin-top: 24px;">
+                <p style="font-size: 12px; color: #58A6FF; margin-top: 24px;">
                     ⚠️ We make a safe local backup before any processing starts.
                 </p>
             </div>
@@ -405,13 +248,13 @@ def render_onboarding(onboard_metadata):
 
         elif step == 3:
             st.markdown(f"""
-            <div class="glass-panel" style="margin-top: 40px;">
+            <div class="vault-panel" style="margin-top: 40px;">
                 <h2 style="color: #ffffff; margin-bottom: 20px;">📂 Export Destination</h2>
                 <p style="color: #c9d1d9; margin-bottom: 24px;">Your archive will be initialized in:</p>
-                <div style="background: rgba(52, 242, 255, 0.05); padding: 16px; border-radius: 8px; font-family: 'SF Mono', monospace; font-size: 14px; color: var(--cyan); border: 1px solid rgba(52, 242, 255, 0.2); text-align: center;">
+                <div style="background: rgba(88, 166, 255, 0.05); padding: 16px; border-radius: 8px; font-family: 'SF Mono', monospace; font-size: 14px; color: #58A6FF; border: 1px solid rgba(88, 166, 255, 0.2); text-align: center;">
                     {backend.OUT_DIR}
                 </div>
-                <p style="font-size: 13px; color: var(--muted); margin-top: 24px;">Everything is indexed locally for zero-latency browsing.</p>
+                <p style="font-size: 13px; color: #8B949E; margin-top: 24px;">Everything is indexed locally for zero-latency browsing.</p>
             </div>
             """, unsafe_allow_html=True)
             st.write("")
@@ -424,15 +267,6 @@ def render_onboarding(onboard_metadata):
                 onboard_metadata["ui_defaults"]["onboarding_complete"] = True
                 backend.save_metadata(onboard_metadata)
                 st.rerun()
-
-    # Float Toolbar (Always on Onboarding)
-    st.markdown("""
-        <div class="neo-toolbar-mock">
-            <div style="color: var(--pink); font-weight: 800; font-size: 18px; margin-right: 12px;">ARCHIVER</div>
-            <div style="width: 1px; height: 20px; background: var(--stroke);"></div>
-            <div style="color: var(--muted); font-size: 12px; margin-left: 12px;">V1.0.0 READY</div>
-        </div>
-    """, unsafe_allow_html=True)
 
     # RIGHT: Preview Pane
     with col_preview:
@@ -673,12 +507,10 @@ else:
             # Empty State
             st.markdown(
                 """
-                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:60vh; text-align:center;">
-                    <div class="glass-panel" style="display:flex; flex-direction:column; align-items:center; padding: 60px;">
-                        <img src="app_icon.png" width="120" style="margin-bottom: 20px;">
-                        <h2 style="color: #ffffff;">Ready to Explore?</h2>
-                        <p style="font-size: 18px; color: var(--muted);">Select a conversation from the sidebar to view history, archive, and analyze trends.</p>
-                    </div>
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:60vh; color:#8b949e; text-align:center;">
+                    <img src="app_icon.png" width="120" style="margin-bottom: 20px;">
+                    <h2 style="color: #ffffff;">Ready to Explore?</h2>
+                    <p style="font-size: 18px;">Select a conversation from the sidebar to view history, archive, and analyze trends.</p>
                 </div>
                 """, 
                 unsafe_allow_html=True
