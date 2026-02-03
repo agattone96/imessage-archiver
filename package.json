@@ -1,0 +1,70 @@
+{
+  "name": "archiver",
+  "version": "1.0.0",
+  "description": "iMessage Archiver - Desktop Application",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --mac",
+    "build-all": "electron-builder -mwl"
+  },
+  "build": {
+    "appId": "com.antigravity.imessagearchiver",
+    "productName": "Archiver",
+    "mac": {
+      "category": "public.app-category.utilities",
+      "icon": "build/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "dmg": {
+      "background": "build/dmg-background.png",
+      "icon": "build/icon.icns",
+      "iconSize": 128,
+      "contents": [
+        {
+          "x": 180,
+          "y": 220,
+          "type": "file"
+        },
+        {
+          "x": 520,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 700,
+        "height": 400
+      }
+    },
+    "files": [
+      "electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "dashboard.py",
+        "to": "dashboard.py"
+      },
+      {
+        "from": "backend",
+        "to": "backend"
+      },
+      {
+        "from": "bin",
+        "to": "bin"
+      },
+      {
+        "from": "requirements.txt",
+        "to": "requirements.txt"
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  }
+}
