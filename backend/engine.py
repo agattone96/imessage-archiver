@@ -21,6 +21,24 @@ def verify_binary(path, expected_hash):
         return h == expected_hash
     except: return False
 
+def check_db_access(db_path=None):
+    if not db_path:
+        # Default Mac path
+        db_path = os.path.expanduser("~/Library/Messages/chat.db")
+    
+    if not os.path.exists(db_path):
+        return False, f"Database not found at {db_path}"
+        
+    try:
+        # Try to read 16 bytes to ensure we have read permission
+        with open(db_path, "rb") as f:
+            f.read(16)
+        return True, "Access granted"
+    except PermissionError:
+        return False, "Permission denied. Please grant Full Disk Access."
+    except Exception as e:
+        return False, f"Error accessing database: {str(e)}"
+
 def process_attachment_task(row_id, raw_path, mime, ts_iso, contact_dir, metadata):
     metadata = metadata or {}
     metadata.setdefault("cache", {})

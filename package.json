@@ -2,7 +2,11 @@
   "name": "archiver",
   "version": "1.1.0",
   "description": "iMessage Archiver - Desktop Application",
-  "author": "Antigravity",
+  "homepage": "https://github.com/antigravity/archiver",
+  "author": {
+    "name": "Antigravity",
+    "email": "support@antigravity.ai"
+  },
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",

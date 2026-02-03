@@ -399,9 +399,14 @@ def render_onboarding(onboard_metadata):
             if col_b1.button("← Back", use_container_width=True):
                 st.session_state.onboard_step = 1
                 st.rerun()
-            if col_b2.button("Permission Granted →", type="primary", use_container_width=True):
-                st.session_state.onboard_step = 3
-                st.rerun()
+            if col_b2.button("Verify Access →", type="primary", use_container_width=True):
+                success, msg = backend.check_db_access()
+                if success:
+                    st.success("Access verified!")
+                    st.session_state.onboard_step = 3
+                    st.rerun()
+                else:
+                    st.error(f"Verification Failed: {msg}")
 
         elif step == 3:
             st.markdown(f"""

@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Menu, shell } = require('electron');
 const { spawn, execSync } = require('child_process');
+const http = require('http');
 const path = require('path');
 const net = require('net');
 const fs = require('fs');
@@ -64,12 +65,17 @@ log('='.repeat(60));
 
 function createSplashScreen() {
   log('Creating splash screen');
+  const runtimeIcon = getRuntimeIconPath();
   splashWindow = new BrowserWindow({
     width: 500,
     height: 350,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
+    resizable: false,
+    backgroundColor: '#05060b',
+    icon: (process.platform === 'win32' || process.platform === 'linux') ? runtimeIcon : undefined,
+    show: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true
@@ -77,6 +83,14 @@ function createSplashScreen() {
   });
 
   splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+  splashWindow.once('ready-to-show', () => {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.show();
+    }
+  });
+  splashWindow.on('closed', () => {
+    splashWindow = null;
+  });
 }
 
 function getRuntimeIconPath() {
@@ -108,6 +122,49 @@ function findFreePort(startPort) {
     server.on('error', () => {
       resolve(findFreePort(startPort + 1));
     });
+  });
+}
+
+function waitForHttpReady(port, { timeoutMs = 30000, intervalMs = 200 } = {}) {
+  const start = Date.now();
+
+  return new Promise((resolve, reject) => {
+    const attempt = () => {
+      if (streamlitProcess && streamlitProcess.exitCode !== null) {
+        reject(new Error(`Streamlit exited with code ${streamlitProcess.exitCode}`));
+        return;
+      }
+
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port,
+          path: '/',
+          method: 'GET',
+          timeout: 1000
+        },
+        (res) => {
+          res.resume();
+          resolve();
+        }
+      );
+
+      req.on('timeout', () => {
+        req.destroy(new Error('HTTP probe timeout'));
+      });
+
+      req.on('error', () => {
+        if (Date.now() - start >= timeoutMs) {
+          reject(new Error(`Streamlit did not become ready on http://localhost:${port} within ${timeoutMs}ms`));
+          return;
+        }
+        setTimeout(attempt, intervalMs);
+      });
+
+      req.end();
+    };
+
+    attempt();
   });
 }
 
@@ -206,9 +263,6 @@ function startStreamlit() {
 
     streamlitProcess.stdout.on('data', (data) => {
       log(`Streamlit: ${data}`);
-      if (data.toString().includes('Network URL') || data.toString().includes('Local URL')) {
-        resolve(port);
-      }
     });
 
     streamlitProcess.stderr.on('data', (data) => {
@@ -219,18 +273,23 @@ function startStreamlit() {
       log(`Streamlit exited with code ${code}`);
     });
 
-    // Timeout fallback
-    setTimeout(() => resolve(port), 3000);
+    try {
+      await waitForHttpReady(port, { timeoutMs: 30000, intervalMs: 200 });
+      resolve(port);
+    } catch (e) {
+      reject(e);
+    }
   });
 }
 
-function createWindow(port) {
+function createWindow(port, { onReady } = {}) {
   log(`Creating main window for port ${port}`);
   const runtimeIcon = getRuntimeIconPath();
   const isDev = !app.isPackaged;
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    backgroundColor: '#05060b',
     icon: (process.platform === 'win32' || process.platform === 'linux') ? runtimeIcon : undefined,
     webPreferences: {
       nodeIntegration: false,
@@ -276,19 +335,36 @@ function createWindow(port) {
     return { action: 'deny' };
   });
 
-  // Wait for page content to actually load before showing
-  mainWindow.webContents.on('did-finish-load', () => {
-    log('Main window content loaded');
-    // Small delay to let Streamlit render
-    setTimeout(() => {
-      log('Closing splash and showing main window');
-      if (splashWindow && !splashWindow.isDestroyed()) {
-        splashWindow.close();
-      }
-      mainWindow.show();
-      log('App fully initialized');
-      log(`Full diagnostic log: ${LOG_FILE}`);
-    }, 500);
+  let didShow = false;
+  const showMain = () => {
+    if (didShow) return;
+    didShow = true;
+
+    log('Closing splash and showing main window');
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.close();
+    }
+    mainWindow.show();
+    if (typeof onReady === 'function') {
+      onReady();
+    }
+    log('App fully initialized');
+    log(`Full diagnostic log: ${LOG_FILE}`);
+  };
+
+  // Prefer ready-to-show; use did-finish-load as a fallback for some platforms/configurations.
+  mainWindow.once('ready-to-show', () => {
+    log('Main window ready-to-show');
+    setTimeout(showMain, 250);
+  });
+
+  mainWindow.webContents.once('did-finish-load', () => {
+    log('Main window did-finish-load');
+    setTimeout(showMain, 250);
+  });
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    log(`Main window did-fail-load: ${errorCode} ${errorDescription} (${validatedURL})`, 'ERROR');
   });
 
   mainWindow.on('closed', () => {
@@ -362,10 +438,7 @@ app.whenReady().then(async () => {
     log(`Streamlit ready on port ${port}`);
 
     // Create main window (hidden initially)
-    createWindow(port);
-
-    // Clear the failure timeout since we made it this far
-    clearTimeout(failureTimeout);
+    createWindow(port, { onReady: () => clearTimeout(failureTimeout) });
   } catch (error) {
     clearTimeout(failureTimeout);
     log(`FATAL ERROR: ${error.message}`, 'ERROR');
