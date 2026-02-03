@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow, Menu, shell } = require('electron');
 const { spawn, execSync } = require('child_process');
 const path = require('path');
 const net = require('net');
@@ -11,6 +11,11 @@ const STREAMLIT_PORT = 8501;
 
 // Set app name for macOS branding
 app.setName('Archiver');
+
+// Windows: required for taskbar identity and notifications
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.antigravity.imessagearchiver');
+}
 
 // Single Instance Lock
 const gotTheLock = app.requestSingleInstanceLock();
@@ -72,6 +77,23 @@ function createSplashScreen() {
   });
 
   splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+}
+
+function getRuntimeIconPath() {
+  const base = app.isPackaged
+    ? process.resourcesPath
+    : path.join(__dirname, '..', 'build');
+
+  if (process.platform === 'win32') {
+    return path.join(base, 'icon.ico');
+  }
+  if (process.platform === 'linux') {
+    return path.join(base, 'icons', '512x512.png');
+  }
+  if (process.platform === 'darwin') {
+    return path.join(base, 'icon.icns');
+  }
+  return undefined;
 }
 
 function findFreePort(startPort) {
@@ -204,13 +226,18 @@ function startStreamlit() {
 
 function createWindow(port) {
   log(`Creating main window for port ${port}`);
+  const runtimeIcon = getRuntimeIconPath();
+  const isDev = !app.isPackaged;
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    icon: (process.platform === 'win32' || process.platform === 'linux') ? runtimeIcon : undefined,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      enableRemoteModule: false
+      enableRemoteModule: false,
+      sandbox: true,
+      devTools: isDev
     },
     title: 'Archiver',
     show: false
@@ -219,6 +246,35 @@ function createWindow(port) {
   log(`Loading URL: http://localhost:${port}`);
 
   mainWindow.loadURL(`http://localhost:${port}`);
+
+  const isAllowedLocalUrl = (urlString) => {
+    try {
+      const url = new URL(urlString);
+      return (
+        (url.protocol === 'http:' || url.protocol === 'https:') &&
+        (url.hostname === 'localhost' || url.hostname === '127.0.0.1') &&
+        url.port === String(port)
+      );
+    } catch {
+      return false;
+    }
+  };
+
+  // Keep navigation confined to the local Streamlit app; open external links in the system browser.
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!isAllowedLocalUrl(url)) {
+      event.preventDefault();
+      shell.openExternal(url).catch(() => {});
+    }
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isAllowedLocalUrl(url)) {
+      return { action: 'allow' };
+    }
+    shell.openExternal(url).catch(() => {});
+    return { action: 'deny' };
+  });
 
   // Wait for page content to actually load before showing
   mainWindow.webContents.on('did-finish-load', () => {
@@ -270,9 +326,13 @@ app.whenReady().then(async () => {
     Menu.setApplicationMenu(menu);
 
     // Force Dock Icon
-    const iconPath = path.join(__dirname, '..', 'app_icon.png');
-    if (fs.existsSync(iconPath)) {
+    const iconPath = getRuntimeIconPath();
+    log(`Attempting to set dock icon from: ${iconPath}`);
+    if (iconPath && fs.existsSync(iconPath)) {
       app.dock.setIcon(iconPath);
+      log('Dock icon set successfully');
+    } else {
+      log(`Dock icon NOT found at ${iconPath}`, 'WARNING');
     }
   }
 

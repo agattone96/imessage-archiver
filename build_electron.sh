@@ -1,7 +1,9 @@
-#!/bin/bash
-set -e
-
-echo "🔨 Building Electron App..."
+# 0. Asset Preparation
+echo "🎨 Optimizing Icon & Generating Sets..."
+# Reset icon state from source if needed
+# (Assuming latest source icon is already app_icon.png from previous steps)
+python3 optimize_icon.py
+./create_icons.sh
 
 # 1. Install Node dependencies
 echo "📦 Installing Electron..."

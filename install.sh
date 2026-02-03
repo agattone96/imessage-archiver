@@ -1,17 +1,15 @@
 #!/bin/bash
 set -e
 
-APP_NAME="iMessage Archiver.app"
+APP_NAME="Archiver.app"
 INSTALL_DIR="/Applications"
-SOURCE_APP="dist/$APP_NAME"
+SOURCE_APP=$(ls -d dist/mac*/$APP_NAME | head -n 1)
 
-echo "📦 Installing Standalone App..."
+echo "📦 Installing Electron App..."
 
 # 1. Build
-echo "🏗️  Building Native App Bundle..."
-# Ensure dependencies are present for building
-pip install -r requirements.txt --quiet
-./build_native.sh
+echo "🏗️  Building Production Bundle..."
+./build_electron.sh
 
 # 2. Cleanup Old Versions
 if [[ -d "$INSTALL_DIR/$APP_NAME" ]]; then
@@ -26,7 +24,7 @@ cp -R "$SOURCE_APP" "$INSTALL_DIR/"
 # 4. Refresh Icon Cache
 echo "🔄 Refreshing Icon Cache..."
 touch "$INSTALL_DIR/$APP_NAME"
-killall Dock
+killall Dock || true
 
 # 4. Verify
 if [[ -d "$INSTALL_DIR/$APP_NAME" ]]; then

@@ -479,6 +479,27 @@ else:
         def get_cached_handle_map():
             return backend.get_handle_map()
 
+        @st.cache_data(ttl=2, show_spinner=False)
+        def load_recent_chats_cached(search_filter):
+            return backend.get_recent_chats(limit=50, search_filter=search_filter, h_map=get_cached_handle_map())
+
+        @st.cache_data(ttl=2, show_spinner=False)
+        def load_chat_messages_cached(chat_guid):
+            conn = backend.get_db_connection()
+            cur = conn.cursor()
+            sql = """
+            SELECT m.text, m.attributedBody, m.is_from_me, m.date, h.id as handle_id
+            FROM message m
+            JOIN chat_message_join cmj ON m.ROWID = cmj.message_id
+            JOIN chat c ON cmj.chat_id = c.ROWID
+            LEFT JOIN handle h ON m.handle_id = h.ROWID
+            WHERE c.guid = ?
+            ORDER BY m.date DESC LIMIT 50
+            """
+            rows = [dict(r) for r in cur.execute(sql, (chat_guid,))]
+            conn.close()
+            return list(reversed(rows))
+
         h_map = get_cached_handle_map()
         # metadata loaded above
         stats = load_global_stats()
@@ -538,7 +559,7 @@ else:
     if "selected_guid" not in st.session_state:
         st.session_state.selected_guid = None
 
-    chats = backend.get_recent_chats(limit=50, search_filter=search_query, h_map=h_map)
+    chats = load_recent_chats_cached(search_query)
 
     col_list, col_view = st.columns([1, 2], gap="large")
 
@@ -605,20 +626,7 @@ else:
             with tab_chat:
                 # Fetch last 50 messages for preview
                 # We need raw data for our custom renderer
-                conn = backend.get_db_connection()
-                cur = conn.cursor()
-                sql = """
-                SELECT m.text, m.attributedBody, m.is_from_me, m.date, h.id as handle_id
-                FROM message m
-                JOIN chat_message_join cmj ON m.ROWID = cmj.message_id
-                JOIN chat c ON cmj.chat_id = c.ROWID
-                LEFT JOIN handle h ON m.handle_id = h.ROWID
-                WHERE c.guid = ?
-                ORDER BY m.date DESC LIMIT 50
-                """
-                rows = [dict(r) for r in cur.execute(sql, (guid,))]
-                conn.close()
-                rows = list(reversed(rows))
+                rows = load_chat_messages_cached(guid)
                 
                 # Render Chat
                 html_parts = ['<div class="chat-container">']

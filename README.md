@@ -1,64 +1,60 @@
 # iMessage Archiver
 
-A powerful, hybrid tool to archive your iMessage history. Supports both a command-line interface (CLI) and a modern Web Dashboard.
+A professional macOS application to archive, browse, and analyze your iMessage history with a modern desktop experience.
+
+![App Icon](app_icon.png)
 
 ## Features
-- **Dual Mode**: Run as a CLI tool or a Web Dashboard.
-- **Full History**: Exports text, reactions, and attachments.
-- **Incremental Sync**: Continue where you left off without re-exporting everything.
-- **Multi-Format**: Export to CSV, JSON, or Markdown (Narrative).
-- **Media Processing**:
-    - **OCR**: Automatically extracts text from images (requires `ocr_helper`).
-    - **Transcription**: Transcribes audio messages (requires `transcribe_helper`).
-- **Contact Resolution**: Resolves names from your local Contacts (AddressBook) database.
+- **Modern Desktop UI**: Powered by Electron for a sleek, responsive experience.
+- **Unified Dashboard**: Single-page Command Center for browsing all threads.
+- **Search & Filter**: Find specific messages or contacts instantly.
+- **Full History Export**: High-fidelity exports including text, reactions, and attachments.
+- **Intelligent Processing**:
+    - **OCR**: Extract text from images automatically.
+    - **Transcription**: Convert audio messages to text.
+- **Privacy First**: All processing happens locally on your machine. No data ever leaves your device.
 
 ## Prerequisites
-- **macOS**: This tool relies on the macOS `Messages.app` database (`chat.db`).
-- **Full Disk Access**: Terminal (or iTerm/VSCode) MUST have Full Disk Access to read the iMessage database.
-    - Go to `System Settings > Privacy & Security > Full Disk Access` and enable your terminal.
-- **Python 3**: Pre-installed on macOS.
-- **Streamlit**: (Optional) Required for the Web Dashboard.
+- **macOS**: Compatible with modern macOS versions.
+- **Full Disk Access**: The application requires Full Disk Access to read your local `chat.db`.
+    - Go to `System Settings > Privacy & Security > Full Disk Access`.
+    - Add and enable **Archiver**.
 
-## Installation
+## Installation & Setup
 
-1.  **Clone/Copy** files to a folder (e.g., `~/Applications/iMessageArchiver`).
-2.  **Run Setup**:
-    ```bash
-    ./setup.sh
-    ```
-    This will install python dependencies.
+### For Users
+1. Download the latest `Archiver.dmg` from the Releases page.
+2. Drag **Archiver** to your Applications folder.
+3. Launch and grant the necessary permissions.
 
-### Quick Start (App Bundle)
-Double-click **iMessage Archiver.app** in this folder to launch.
-*   You can drag this app to your `Applications` folder or Dock.
-*   **Note**: The first time you run it, macOS might ask for permission to access `Terminal` or `Documents`.
+### For Developers
+1. Clone the repository.
+2. Ensure you have Node.js and Python 3 installed.
+3. Build the application:
+   ```bash
+   ./build_electron.sh
+   ```
+4. Run in development mode:
+   ```bash
+   npm start
+   ```
 
-### Command Line
-```bash
-./archiver.sh
+## Output Structure
+Exports are organized in `~/Downloads/iMessage_Exports/`:
 ```
-
-## Output
-All exports are saved to: `~/Downloads/iMessage_Exports/`
-
-**Folder Structure:**
+<Contact Name>/
+├── chat_export.csv       # Categorized Message History
+└── Media/                # High-res Attachments
+    ├── Photos/
+    ├── Videos/
+    ├── Audio/            # Voice Memos + Transcripts
+    └── OCR/              # Image Text Analysis
 ```
-~/Downloads/iMessage_Exports/
-  └── <Contact Name>/
-      ├── chat_export.csv       # Message History
-      └── Media/                # All Attachments
-          ├── Photos/
-          ├── Videos/
-          ├── Audio/            # Audio Messages & Transcriptions
-          └── OCR/              # Extracted text from images
-```
-
-## Troubleshooting
-- **Permission Denied**: Ensure your terminal has Full Disk Access.
-- **Database Locked**: Close the Messages app if you encounter issues, though the script creates a safe backup to avoid this.
 
 ## Architecture
-- `archiver.sh`: Main entry point / shell wrapper.
-- `backend.py`: Core logic (Database, Archival, Helpers).
-- `cli_main.py`: Native macOS UI logic.
-- `dashboard.py`: Streamlit Web UI.
+- **Frontend**: Electron + Streamlit (embedded).
+- **Engine**: Python-based archival core.
+- **Database**: Direct integration with macOS `chat.db` and `AddressBook`.
+
+## License
+MIT License - see [LICENSE](LICENSE) for details.
