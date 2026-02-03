@@ -30,7 +30,7 @@ if (!fs.existsSync(LOG_DIR)) {
     fs.mkdirSync(LOG_DIR, { recursive: true });
 }
 
-function log(message: string, level = 'INFO') {
+export function log(message: string, level = 'INFO') {
     const timestamp = new Date().toISOString();
     const logMessage = `[${timestamp}] [${level}] ${message}\n`;
     fs.appendFileSync(LOG_FILE, logMessage);
@@ -142,13 +142,13 @@ function createWindow() {
 
     const loadUrl = isDev
         ? `http://localhost:${FRONTEND_PORT}`
-        : `file://${path.join(__dirname, '../../frontend/dist/index.html')}`;
+        : `file://${path.join(app.getAppPath(), 'frontend/dist/index.html')}`;
 
     log(`Loading main window URL: ${loadUrl}`);
 
     // In production, verify the file exists
     if (!isDev) {
-        const indexPath = path.join(__dirname, '../../frontend/dist/index.html');
+        const indexPath = path.join(app.getAppPath(), 'frontend/dist/index.html');
         if (!fs.existsSync(indexPath)) {
             log(`ERROR: index.html not found at ${indexPath}`, 'ERROR');
             dialog.showErrorBox('Resource Missing', `Frontend index.html not found at:\n${indexPath}`);
@@ -223,8 +223,12 @@ app.whenReady().then(async () => {
         // Set Dock Icon
         const iconPath = getRuntimeIconPath();
         if (fs.existsSync(iconPath)) {
-            app.dock.setIcon(iconPath);
-            log('Dock icon set successfully');
+            try {
+                app.dock.setIcon(iconPath);
+                log('Dock icon set successfully');
+            } catch (error: any) {
+                log(`Failed to set dock icon: ${error.message}`, 'WARNING');
+            }
         } else {
             log(`Dock icon NOT found at ${iconPath}`, 'WARNING');
         }

@@ -1,4 +1,37 @@
+import { useState } from 'react';
+
 export function Settings() {
+    const [isCleaningUp, setIsCleaningUp] = useState(false);
+
+    const handleCompleteCleanup = async () => {
+        const confirmed = window.confirm(
+            '⚠️ COMPLETE APP WIPE\n\n' +
+            'This will:\n' +
+            '1. Export all logs to Downloads (zipped)\n' +
+            '2. Kill the backend\n' +
+            '3. Delete ALL app data\n' +
+            '4. Quit the app\n\n' +
+            'This action cannot be undone.\n\n' +
+            'Continue?'
+        );
+
+        if (!confirmed) return;
+
+        setIsCleaningUp(true);
+        try {
+            const result = await (window as any).electron.invoke('complete-cleanup');
+            if (result.success) {
+                // App will quit automatically
+            } else {
+                alert(`Cleanup failed: ${result.error}`);
+                setIsCleaningUp(false);
+            }
+        } catch (error) {
+            alert(`Cleanup error: ${error}`);
+            setIsCleaningUp(false);
+        }
+    };
+
     return (
         <div className="h-full overflow-y-auto p-10 bg-bg0/50">
             <div className="max-w-2xl mx-auto space-y-8">
@@ -24,9 +57,16 @@ export function Settings() {
                     </div>
 
                     <div className="pt-4">
-                        <button className="w-full py-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 font-medium transition-colors">
-                            Reset Onboarding (Debug)
+                        <button
+                            onClick={handleCompleteCleanup}
+                            disabled={isCleaningUp}
+                            className="w-full py-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isCleaningUp ? 'Cleaning up...' : '🗑️  Complete App Cleanup & Reset'}
                         </button>
+                        <p className="text-xs text-muted/60 mt-2 text-center">
+                            Exports logs to Downloads, wipes all data, quits app
+                        </p>
                     </div>
                 </div>
 

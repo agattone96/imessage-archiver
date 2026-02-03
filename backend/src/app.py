@@ -6,13 +6,11 @@ from typing import Optional, List, Dict, Any
 import sys
 import os
 
-# Add project root to sys.path so 'backend' module is importable
-# Current file: backend/src/app.py
-# Project root: ../../ (from this file's position)
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# Add project root to sys.path so 'backend' package is importable
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend import engine, db
-from backend.config import OUT_DIR
+from backend.src import engine, db
+from backend.src.config import OUT_DIR
 
 app = FastAPI(title="Archiver API", version="1.0.0")
 

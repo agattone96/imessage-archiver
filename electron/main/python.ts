@@ -3,11 +3,13 @@ import path from 'path';
 import fs from 'fs';
 import http from 'http';
 import { app, BrowserWindow } from 'electron';
+import { log as mainLog } from './index';
 
 let backendProcess: ChildProcess | null = null;
 const BACKEND_PORT = 8000;
 
-function log(message: string) {
+function log(message: string, level = 'INFO') {
+    mainLog(`[Python] ${message}`, level);
     console.log(`[Python] ${message}`);
 }
 
@@ -26,6 +28,7 @@ function findPython(): string {
             const { execSync } = require('child_process');
             const version = execSync(`${pythonCmd} --version 2>&1`, { encoding: 'utf-8' });
             if (version.includes('Python 3')) {
+                log(`Found Python: ${pythonCmd} (${version.trim()})`);
                 return pythonCmd;
             }
         } catch { }
@@ -34,10 +37,13 @@ function findPython(): string {
     try {
         const { execSync } = require('child_process');
         const pythonPath = execSync('which python3', { encoding: 'utf-8' }).trim();
-        if (pythonPath) return pythonPath;
+        if (pythonPath) {
+            log(`Found Python via which: ${pythonPath}`);
+            return pythonPath;
+        }
     } catch { }
 
-    throw new Error('Python 3 not found');
+    throw new Error('Python 3 not found on system');
 }
 
 export function startPythonServer(splashWindow?: BrowserWindow | null): Promise<number> {
@@ -48,10 +54,9 @@ export function startPythonServer(splashWindow?: BrowserWindow | null): Promise<
         let pythonPath;
         try {
             pythonPath = findPython();
-            log(`Found Python at: ${pythonPath}`);
             splashWindow?.webContents.send('splash-progress', { message: 'Python Environment Found', percent: 25 });
         } catch (error: any) {
-            log(`ERROR: ${error.message}`);
+            log(`ERROR: ${error.message}`, 'ERROR');
             reject(error);
             return;
         }
@@ -60,16 +65,21 @@ export function startPythonServer(splashWindow?: BrowserWindow | null): Promise<
         const projectRoot = isDev ? path.join(__dirname, '../../') : process.resourcesPath;
         const scriptPath = path.join(projectRoot, 'backend', 'src', 'app.py');
 
+        log(`Project root: ${projectRoot}`);
+        log(`Script path: ${scriptPath}`);
+        log(`Script exists: ${fs.existsSync(scriptPath)}`);
+
         if (!fs.existsSync(scriptPath)) {
-            const error = `ERROR: app.py not found at ${scriptPath}`;
-            log(error);
+            const error = `app.py not found at ${scriptPath}`;
+            log(error, 'ERROR');
             reject(new Error(error));
             return;
         }
 
         splashWindow?.webContents.send('splash-progress', { message: 'Spawning Core Engine...', percent: 40 });
 
-        log(`Spawning Backend: ${pythonPath} ${scriptPath}`);
+        log(`Spawning command: ${pythonPath} ${scriptPath}`);
+        log(`CWD: ${projectRoot}`);
 
         backendProcess = spawn(pythonPath, [scriptPath], {
             cwd: projectRoot,
@@ -80,11 +90,39 @@ export function startPythonServer(splashWindow?: BrowserWindow | null): Promise<
             }
         });
 
-        backendProcess.stdout?.on('data', (data) => log(`stdout: ${data}`));
-        backendProcess.stderr?.on('data', (data) => log(`stderr: ${data}`));
+        if (!backendProcess || !backendProcess.pid) {
+            const error = 'Failed to spawn backend process (no PID)';
+            log(error, 'ERROR');
+            reject(new Error(error));
+            return;
+        }
 
-        backendProcess.on('close', (code) => {
-            log(`Backend exited with code ${code}`);
+        log(`✓ Backend spawned with PID: ${backendProcess.pid}`);
+
+        let backendReady = false;
+
+        backendProcess.stdout?.on('data', (data) => {
+            const output = data.toString().trim();
+            log(`stdout: ${output}`);
+
+            if (output.includes('Uvicorn running on') || output.includes('Application startup complete')) {
+                backendReady = true;
+                log('✓ Backend confirmed ready via stdout');
+            }
+        });
+
+        backendProcess.stderr?.on('data', (data) => {
+            const output = data.toString().trim();
+            log(`stderr: ${output}`, 'WARNING');
+        });
+
+        backendProcess.on('error', (err) => {
+            log(`Process spawn error: ${err.message}`, 'ERROR');
+            reject(err);
+        });
+
+        backendProcess.on('close', (code, signal) => {
+            log(`Backend exited with code ${code}, signal ${signal}`);
             backendProcess = null;
         });
 
@@ -98,20 +136,36 @@ export function startPythonServer(splashWindow?: BrowserWindow | null): Promise<
                 host: '127.0.0.1',
                 port: BACKEND_PORT,
                 path: '/system/status',
-                method: 'GET'
+                method: 'GET',
+                timeout: 1000
             }, (res) => {
                 if (res.statusCode === 200) {
                     clearInterval(checkInterval);
+                    log('✓ Health check passed: /system/status returned 200');
                     splashWindow?.webContents.send('splash-progress', { message: 'Ready!', percent: 100 });
                     resolve(BACKEND_PORT);
+                } else {
+                    log(`Health check returned status ${res.statusCode}`, 'WARNING');
                 }
             });
-            req.on('error', () => { });
+            req.on('error', (err) => {
+                // Silent until timeout - expected while backend starts
+            });
             req.end();
         }, 500);
 
         setTimeout(() => {
             clearInterval(checkInterval);
+            const diagnostics = [
+                `Backend failed to start within 30s`,
+                `Last known PID: ${backendProcess?.pid || 'none'}`,
+                `Backend ready flag: ${backendReady}`,
+                `Python path: ${pythonPath}`,
+                `Script path: ${scriptPath}`,
+                `Health endpoint: http://127.0.0.1:${BACKEND_PORT}/system/status`,
+                `Check Terminal output or system logs for more details`
+            ].join('\n');
+            log(diagnostics, 'ERROR');
             reject(new Error('Backend initialization timed out'));
         }, 30000);
     });
@@ -119,7 +173,7 @@ export function startPythonServer(splashWindow?: BrowserWindow | null): Promise<
 
 export function killPythonServer() {
     if (backendProcess) {
-        log('Killing backend process...');
+        log(`Killing backend process (PID: ${backendProcess.pid})`);
         backendProcess.kill();
         backendProcess = null;
     }
