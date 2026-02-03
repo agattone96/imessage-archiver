@@ -18,7 +18,7 @@ def get_global_stats():
         cur.execute("SELECT MAX(date) FROM message")
         last_ts = cur.fetchone()[0]
         stats["last_active"] = mac_timestamp_to_iso(last_ts)
-        sql_top = "SELECT count(*) as cnt, h.id FROM handle h ON m.handle_id = h.ROWID GROUP BY h.id ORDER BY cnt DESC LIMIT 1"
+        sql_top = "SELECT count(*) as cnt, h.id FROM message m JOIN handle h ON m.handle_id = h.ROWID GROUP BY h.id ORDER BY cnt DESC LIMIT 1"
         cur.execute(sql_top)
         row = cur.fetchone()
         stats["top_contact_handle"] = row[1] if row else "N/A"

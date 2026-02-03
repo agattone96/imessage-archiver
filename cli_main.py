@@ -215,7 +215,8 @@ def main():
                 update_ui_progress(count, count, "Done!")
     
     # Final signal
-    target_outfile_path = os.path.join(os.environ["TMPDIR"], "target_outfile.txt")
+    tmpdir = os.environ.get("TMPDIR") or "/tmp"
+    target_outfile_path = os.path.join(tmpdir, "target_outfile.txt")
     with open(target_outfile_path, "w") as f:
         f.write(last_file)
 

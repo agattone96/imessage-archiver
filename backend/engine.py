@@ -22,6 +22,8 @@ def verify_binary(path, expected_hash):
     except: return False
 
 def process_attachment_task(row_id, raw_path, mime, ts_iso, contact_dir, metadata):
+    metadata = metadata or {}
+    metadata.setdefault("cache", {})
     if not os.path.exists(raw_path): 
         return row_id, "", f" [Missing Attachment: {os.path.basename(raw_path)}]"
     
@@ -80,6 +82,9 @@ def process_attachment_task(row_id, raw_path, mime, ts_iso, contact_dir, metadat
 
 def archive_chat(chat_guid, format_ext, is_incremental, metadata=None, h_map=None, progress_callback=None):
     if metadata is None: metadata = load_metadata()
+    metadata.setdefault("cache", {})
+    metadata.setdefault("chats", {})
+    metadata.setdefault("ui_defaults", {})
     if h_map is None: h_map = get_handle_map()
 
     start_ts = 0

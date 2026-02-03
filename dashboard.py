@@ -355,7 +355,7 @@ else:
         st.markdown("---")
         st.caption(f"📂 Storage: `{backend.OUT_DIR}`")
         if st.button("Reset Onboarding"):
-             metadata["ui_defaults"]["onboarding_complete"] = False
+             metadata.setdefault("ui_defaults", {})["onboarding_complete"] = False
              backend.save_metadata(metadata)
              st.rerun()
              

@@ -5,15 +5,27 @@ import shutil
 from .config import DEFAULT_DB_PATH, TMP_DB, METADATA_FILE, TMP_CONTACTS_DIR
 from .helpers import mac_timestamp_to_iso, normalize_handle
 
+def _normalize_metadata(data):
+    if not isinstance(data, dict):
+        data = {}
+    data.setdefault("handles", {})
+    data.setdefault("chats", {})
+    data.setdefault("cache", {})
+    data.setdefault("ui_defaults", {})
+    return data
+
 def load_metadata():
     if os.path.exists(METADATA_FILE):
         try:
-            with open(METADATA_FILE, "r", encoding="utf-8") as f: return json.load(f)
-        except (IOError, json.JSONDecodeError): pass
-    return {"handles": {}, "chats": {}, "cache": {}, "ui_defaults": {}}
+            with open(METADATA_FILE, "r", encoding="utf-8") as f:
+                return _normalize_metadata(json.load(f))
+        except (IOError, json.JSONDecodeError):
+            pass
+    return _normalize_metadata({})
 
 def save_metadata(data):
     try:
+        data = _normalize_metadata(data)
         tmp = METADATA_FILE + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f: json.dump(data, f, indent=2)
         os.replace(tmp, METADATA_FILE)
