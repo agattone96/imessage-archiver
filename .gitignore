@@ -118,3 +118,34 @@ artifacts/
 tmp/
 temp/
 *.spec
+
+# --- 🌐 Electron & Browser Cache ---
+Cache/
+Cache_Data/
+Code Cache/
+DawnCache/
+GPUCache/
+Local Storage/
+Session Storage/
+Shared Dictionary/
+SharedStorage/
+
+# --- 👤 User Preferences & Session ---
+Cookies
+Cookies-journal
+Preferences
+Network Persistent State
+Trust Tokens
+Trust Tokens-journal
+TransportSecurity
+SingletonCookie
+SingletonLock
+SingletonSocket
+
+# --- 🧹 Backups & Temporary ---
+*.bak
+*_backup.*
+dashboard.py.bak
+output/pdf/
+tmp/pdfs/
+
