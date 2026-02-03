@@ -3,11 +3,13 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
-import os
 import sys
+import os
 
-# Add current directory to path so we can import backend modules
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add project root to sys.path so 'backend' module is importable
+# Current file: backend/src/app.py
+# Project root: ../../ (from this file's position)
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from backend import engine, db
 from backend.config import OUT_DIR
