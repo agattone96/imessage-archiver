@@ -1,8 +1,8 @@
 import uvicorn
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, validator
+from typing import Optional, List
 import sys
 import os
 
@@ -11,6 +11,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.src import engine, db
 from backend.src.config import OUT_DIR
+from backend.src.helpers import decode_body, mac_timestamp_to_iso, redact_path
+
+def _safe_detail(err: Exception) -> str:
+    detail = redact_path(str(err))
+    return detail or "Internal error"
 
 app = FastAPI(title="Archiver API", version="1.0.0")
 
@@ -55,11 +60,18 @@ class ArchiveRequest(BaseModel):
     format: str = "csv" # csv, json, md
     incremental: bool = True
 
+    @validator("format")
+    def validate_format(cls, v):
+        v = (v or "").lower().strip()
+        if v not in {"csv", "json", "md"}:
+            raise ValueError("Unsupported format")
+        return v
+
 # --- API Endpoints ---
 
 @app.get("/system/status")
 def get_status():
-    return {"status": "ok", "version": "1.0.0", "storage": OUT_DIR}
+    return {"status": "ok", "version": "1.0.0", "storage": redact_path(OUT_DIR)}
 
 @app.get("/stats/global")
 def get_global_stats():
@@ -71,10 +83,12 @@ def get_global_stats():
             "total_chats": stats.get("total_chats", 0),
             "top_contact_handle": stats.get("top_contact_handle", "N/A"),
             "top_contact_count": stats.get("top_contact_count", 0),
-            "storage_path": OUT_DIR
+            "storage_path": redact_path(OUT_DIR)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=_safe_detail(e))
 
 @app.get("/chats/recent", response_model=List[Chat])
 def get_recent_chats(search: Optional[str] = None, limit: int = 50):
@@ -82,7 +96,9 @@ def get_recent_chats(search: Optional[str] = None, limit: int = 50):
         chats = db.get_recent_chats(limit=limit, search_filter=search)
         return chats
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=_safe_detail(e))
 
 @app.get("/chats/{guid}/messages", response_model=List[Message])
 def get_chat_messages(guid: str, limit: int = 50):
@@ -107,7 +123,6 @@ def get_chat_messages(guid: str, limit: int = 50):
         results = []
         for r in reversed(rows):
             # Decode body
-            from backend.helpers import decode_body, mac_timestamp_to_iso
             text_decoded = decode_body(r['text'], r['attributedBody'])
             
             sender_name = "Me" if r['is_from_me'] else db.resolve_name(r['handle_id'], h_map)
@@ -123,7 +138,7 @@ def get_chat_messages(guid: str, limit: int = 50):
             
         return results
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=_safe_detail(e))
 
 @app.post("/onboarding/check-access", response_model=OnboardingCheckResponse)
 def check_access():
@@ -150,10 +165,19 @@ def archive_chat_endpoint(guid: str, req: ArchiveRequest):
     try:
         # This implementation blocks the request. Ideally, this should be a background task.
         # For now, we keep it simple as per original design, but maybe we can return a job ID later.
+        if req.chat_guid and req.chat_guid != guid:
+            raise HTTPException(status_code=400, detail="chat_guid mismatch")
         path, count = engine.archive_chat(guid, req.format, req.incremental)
-        return {"status": "ok", "path": path, "count": count}
+        safe_path = None
+        if path:
+            try:
+                rel = os.path.relpath(path, OUT_DIR)
+                safe_path = rel if not rel.startswith("..") else os.path.basename(path)
+            except Exception:
+                safe_path = os.path.basename(path)
+        return {"status": "ok", "path": safe_path, "count": count}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=_safe_detail(e))
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)

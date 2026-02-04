@@ -413,5 +413,11 @@ config.json
 # Archiver user data if stored locally during dev
 frontend/dist/
 backend/venv/
+backend/bin/
+backend/.pyi_build/
+backend/.pyi_spec/
+
+# Ignore local editor settings
+.vscode/
 
 # End of .gitignore

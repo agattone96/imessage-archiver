@@ -3,6 +3,23 @@ import plistlib
 import re
 import hashlib
 import os
+import re
+
+def redact_path(path):
+    if not path:
+        return path
+    try:
+        home = os.path.expanduser("~")
+        if path.startswith(home):
+            path = path.replace(home, "~", 1)
+    except Exception:
+        return path
+    # Redact common absolute paths if embedded in a message
+    try:
+        path = re.sub(r'(/(?:Users|var|private|tmp|Volumes)/[^\\s\'"]+)', '[redacted]', path)
+    except Exception:
+        pass
+    return path
 
 def mac_timestamp_to_iso(mac_ts):
     if not mac_ts: return ""

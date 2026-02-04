@@ -2,8 +2,42 @@ import sqlite3
 import os
 import json
 import shutil
+import tempfile
+import atexit
 from .config import DEFAULT_DB_PATH, TMP_DB, METADATA_FILE, TMP_CONTACTS_DIR
-from .helpers import mac_timestamp_to_iso, normalize_handle
+from .helpers import mac_timestamp_to_iso, normalize_handle, redact_path
+
+_TEMP_DB_DIR = None
+
+def _cleanup_temp_db():
+    global _TEMP_DB_DIR
+    if _TEMP_DB_DIR and os.path.isdir(_TEMP_DB_DIR):
+        shutil.rmtree(_TEMP_DB_DIR, ignore_errors=True)
+    _TEMP_DB_DIR = None
+
+def _get_fallback_db_path():
+    global _TEMP_DB_DIR
+    if _TEMP_DB_DIR is None:
+        _TEMP_DB_DIR = tempfile.mkdtemp(prefix="imessage_archiver_")
+        try:
+            os.chmod(_TEMP_DB_DIR, 0o700)
+        except Exception:
+            pass
+        atexit.register(_cleanup_temp_db)
+    return os.path.join(_TEMP_DB_DIR, "imessage_archiver.db")
+
+def _backup_db(src, dest):
+    src_conn = sqlite3.connect(f"file:{src}?mode=ro", uri=True)
+    dest_conn = sqlite3.connect(dest)
+    try:
+        src_conn.backup(dest_conn)
+    finally:
+        dest_conn.close()
+        src_conn.close()
+    try:
+        os.chmod(dest, 0o600)
+    except Exception:
+        pass
 
 def _normalize_metadata(data):
     if not isinstance(data, dict):
@@ -58,19 +92,17 @@ def resolve_name(handle, h_map=None):
 def get_db_connection():
     target_db = TMP_DB
     if not target_db:
-        temp_dir = os.environ.get("TMPDIR", "/tmp")
-        target_db = os.path.join(temp_dir, "imessage_archiver_fallback.db")
-        
+        target_db = _get_fallback_db_path()
         if not os.path.exists(target_db):
             if not os.path.exists(DEFAULT_DB_PATH):
-                 raise RuntimeError(f"Original DB not found at {DEFAULT_DB_PATH}")
+                raise RuntimeError(f"Messages database not found at {redact_path(DEFAULT_DB_PATH)}")
             try:
-                shutil.copy2(DEFAULT_DB_PATH, target_db)
+                _backup_db(DEFAULT_DB_PATH, target_db)
             except Exception as e:
-                raise RuntimeError(f"Failed to create temp database copy at {target_db}: {e}")
+                raise RuntimeError(f"Failed to create temp database copy: {redact_path(str(e))}")
     
     if not os.path.exists(target_db):
-        raise RuntimeError(f"Database not found at {target_db}")
+        raise RuntimeError(f"Database not found at {redact_path(target_db)}")
          
     conn = sqlite3.connect(target_db)
     conn.row_factory = sqlite3.Row

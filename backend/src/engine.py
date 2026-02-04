@@ -6,12 +6,14 @@ import datetime
 import csv
 import json
 from .config import OUT_DIR, OCR_BIN, TRANSCRIBE_BIN, REACTION_MAP, OCR_HASH, TRANSCRIBE_HASH
-from .helpers import get_file_hash, mac_timestamp_to_iso, decode_body
+from .helpers import get_file_hash, mac_timestamp_to_iso, decode_body, redact_path
 from .db import load_metadata, save_metadata, get_handle_map, resolve_name, get_db_connection
 import cProfile
 import pstats
 import io
 import hashlib
+
+ALLOWED_FORMATS = {"csv", "json", "md"}
 
 def verify_binary(path, expected_hash):
     if not path or not os.path.exists(path): return False
@@ -27,7 +29,7 @@ def check_db_access(db_path=None):
         db_path = os.path.expanduser("~/Library/Messages/chat.db")
     
     if not os.path.exists(db_path):
-        return False, f"Database not found at {db_path}"
+        return False, f"Database not found at {redact_path(db_path)}"
         
     try:
         # Try to read 16 bytes to ensure we have read permission
@@ -98,7 +100,26 @@ def process_attachment_task(row_id, raw_path, mime, ts_iso, contact_dir, metadat
         return row_id, rel_path, extra_text
     except: return row_id, "", extra_text
 
+def _unique_output_path(out_dir, base_name, ext, force_timestamp=False):
+    ext = ext.lstrip(".")
+    if not force_timestamp:
+        candidate = os.path.join(out_dir, f"{base_name}.{ext}")
+        if not os.path.exists(candidate):
+            return candidate
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    candidate = os.path.join(out_dir, f"{base_name}_{ts}.{ext}")
+    if not os.path.exists(candidate):
+        return candidate
+    i = 1
+    while os.path.exists(candidate):
+        candidate = os.path.join(out_dir, f"{base_name}_{ts}_{i}.{ext}")
+        i += 1
+    return candidate
+
 def archive_chat(chat_guid, format_ext, is_incremental, metadata=None, h_map=None, progress_callback=None):
+    format_ext = (format_ext or "").lower().strip().lstrip(".")
+    if format_ext not in ALLOWED_FORMATS:
+        raise ValueError("Unsupported export format")
     if metadata is None: metadata = load_metadata()
     metadata.setdefault("cache", {})
     metadata.setdefault("chats", {})
@@ -205,8 +226,7 @@ def archive_chat(chat_guid, format_ext, is_incremental, metadata=None, h_map=Non
         final_data.append(entry)
 
     use_ts_name = os.environ.get("TIMESTAMP_FILENAME") == "1"
-    ts_suffix = f"_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}" if use_ts_name else ""
-    out_file = os.path.join(contact_out_dir, f"chat_export{ts_suffix}." + format_ext)
+    out_file = _unique_output_path(contact_out_dir, "chat_export", format_ext, force_timestamp=use_ts_name)
 
     if format_ext == "csv":
         with open(out_file, "w", newline="", encoding="utf-8") as f:

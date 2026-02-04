@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Move to Applications</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #0a0b14;
+        color: #e2e4e9;
+      }
+      .wrap {
+        padding: 24px 28px;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 10px 0;
+      }
+      p {
+        margin: 0 0 18px 0;
+        color: #b1b4c3;
+      }
+      .buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+      button {
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
+        color: #e2e4e9;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.primary {
+        background: linear-gradient(90deg, #ff2aa8, #8b5cf6);
+        border: none;
+        color: white;
+      }
+      button:hover {
+        filter: brightness(1.08);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Move to Applications</h1>
+      <p>Running from Downloads can break updates and permissions.</p>
+      <div class="buttons">
+        <button id="run">Run Anyway</button>
+        <button id="quit">Quit</button>
+        <button id="move" class="primary">Move to Applications</button>
+      </div>
+    </div>
+    <script>
+      const { ipcRenderer } = require('electron');
+      document.getElementById('move').addEventListener('click', () => {
+        ipcRenderer.send('move-to-applications-choice', 'move');
+      });
+      document.getElementById('quit').addEventListener('click', () => {
+        ipcRenderer.send('move-to-applications-choice', 'quit');
+      });
+      document.getElementById('run').addEventListener('click', () => {
+        ipcRenderer.send('move-to-applications-choice', 'run');
+      });
+    </script>
+  </body>
+</html>

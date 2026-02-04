@@ -13,7 +13,11 @@
     "dev": "concurrently \"npm run dev:ui\" \"npm run dev:electron\"",
     "dev:ui": "cd frontend && npm run dev",
     "dev:electron": "tsc -p electron -w",
-    "prebuild": "rm -rf dist && tsc -p electron && cd frontend && npm run build",
+    "tsc:electron": "npx tsc -p electron --noEmit",
+    "tsc:frontend": "npx tsc -p frontend/tsconfig.json --noEmit",
+    "tsc": "npm run tsc:electron && npm run tsc:frontend",
+    "build:backend": "bash scripts/build_backend_binary.sh",
+    "prebuild": "npm run build:backend && rm -rf dist && tsc -p electron && cd frontend && npm run build",
     "start": "tsc -p electron && electron .",
     "build": "npm run prebuild && electron-builder --mac",
     "build-all": "npm run prebuild && electron-builder -mwl"
@@ -27,9 +31,24 @@
     "mac": {
       "category": "public.app-category.utilities",
       "icon": "assets/icons/app-icon.icns",
+      "hardenedRuntime": true,
+      "entitlements": "electron/entitlements.mac.plist",
+      "entitlementsInherit": "electron/entitlements.mac.inherit.plist",
       "target": [
         "dmg",
         "zip"
+      ]
+    },
+    "win": {
+      "icon": "assets/icons/app-icon.png",
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "icon": "assets/icons/app-icon.png",
+      "target": [
+        "AppImage"
       ]
     },
     "dmg": {
@@ -63,12 +82,18 @@
         "to": "electron/splash.html"
       },
       {
+        "from": "electron/move-to-applications.html",
+        "to": "electron/move-to-applications.html"
+      },
+      {
         "from": "assets",
         "to": "assets"
       }
-    ]
+    ],
+    "afterSign": "scripts/notarize.js"
   },
   "devDependencies": {
+    "@electron/notarize": "^2.5.0",
     "concurrently": "^8.2.2",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",

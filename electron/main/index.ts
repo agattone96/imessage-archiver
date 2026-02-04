@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, shell, dialog } from 'electron';
+import { app, BrowserWindow, Menu, shell, dialog, ipcMain } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { startPythonServer, killPythonServer } from './python';
@@ -7,19 +7,242 @@ import { setupIPC } from './ipc';
 let mainWindow: BrowserWindow | null = null;
 let splashWindow: BrowserWindow | null = null;
 const FRONTEND_PORT = 5173;
+const openRequestQueue: Array<{ argv: string[]; cwd: string; timestamp: number }> = [];
+let rendererReady = false;
+let movePromptShown = false;
+let initStatePath: string | null = null;
 
 app.setName('Archiver');
+
+function sendToRenderer(channel: string, payload: any) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(channel, payload);
+    }
+}
+
+function getInitStatePath() {
+    if (!initStatePath) {
+        initStatePath = path.join(app.getPath('userData'), 'init-state.json');
+    }
+    return initStatePath;
+}
+
+function readInitState() {
+    try {
+        const raw = fs.readFileSync(getInitStatePath(), 'utf-8');
+        return JSON.parse(raw);
+    } catch {
+        return {};
+    }
+}
+
+function writeInitState(state: Record<string, any>) {
+    try {
+        fs.mkdirSync(app.getPath('userData'), { recursive: true });
+        fs.writeFileSync(getInitStatePath(), JSON.stringify(state, null, 2), 'utf-8');
+    } catch (e) {
+        log(`Failed to write init state: ${e}`, 'ERROR');
+    }
+}
+
+function isFirstRun() {
+    const state = readInitState();
+    return !state?.hasInitialized;
+}
+
+function sendSplashUpdate(payload: { stage?: string; status?: string; error?: string; detail?: string }) {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+        splashWindow.webContents.send('splash-progress', payload);
+    }
+}
+
+async function waitForBackendReady(timeoutMs = 15000) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+        try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 2000);
+            const res = await fetch('http://127.0.0.1:8000/system/status', { signal: controller.signal });
+            clearTimeout(timer);
+            if (res.ok) return true;
+        } catch {
+            // ignore and retry
+        }
+        await new Promise((r) => setTimeout(r, 500));
+    }
+    return false;
+}
+
+async function runInitialization() {
+    try {
+        sendSplashUpdate({ stage: 'Preparing folders', status: 'progress' });
+        fs.mkdirSync(app.getPath('userData'), { recursive: true });
+        fs.mkdirSync(LOG_DIR, { recursive: true });
+
+        sendSplashUpdate({ stage: 'Starting backend', status: 'progress' });
+        startPythonServer();
+
+        sendSplashUpdate({ stage: 'Checking readiness', status: 'progress' });
+        const ready = await waitForBackendReady();
+        if (!ready) {
+            throw new Error('Backend did not become ready in time.');
+        }
+
+        sendSplashUpdate({ stage: 'Finalizing', status: 'progress' });
+        writeInitState({ hasInitialized: true, ts: new Date().toISOString() });
+        return true;
+    } catch (err: any) {
+        const message = err?.message || String(err);
+        sendSplashUpdate({ status: 'error', error: 'Initialization failed', detail: message });
+        return false;
+    }
+}
+
+function getBundlePath() {
+    const exePath = app.getPath('exe');
+    const contentsIndex = exePath.indexOf('/Contents/');
+    if (contentsIndex !== -1) {
+        return exePath.slice(0, contentsIndex);
+    }
+    return exePath;
+}
+
+function shouldPromptMoveToApplications() {
+    if (process.platform !== 'darwin') return false;
+    if (!app.isPackaged) return false;
+    if (movePromptShown) return false;
+    const bundlePath = getBundlePath().toLowerCase();
+    if (bundlePath.includes('/applications/')) return false;
+    return (
+        bundlePath.includes('/downloads/') ||
+        bundlePath.includes('/desktop/') ||
+        bundlePath.includes('/volumes/')
+    );
+}
+
+function createMoveToApplicationsWindow() {
+    const iconPath = getRuntimeIconPath();
+    const win = new BrowserWindow({
+        width: 520,
+        height: 260,
+        resizable: false,
+        minimizable: false,
+        maximizable: false,
+        fullscreenable: false,
+        alwaysOnTop: true,
+        show: false,
+        modal: true,
+        title: 'Move to Applications',
+        icon: iconPath,
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false
+        }
+    });
+
+    win.setMenuBarVisibility(false);
+    win.loadFile(
+        app.isPackaged
+            ? path.join(process.resourcesPath, 'electron/move-to-applications.html')
+            : path.join(__dirname, '../move-to-applications.html')
+    );
+
+    win.once('ready-to-show', () => {
+        win.show();
+        win.focus();
+    });
+
+    return win;
+}
+
+async function promptMoveToApplications() {
+    if (!shouldPromptMoveToApplications()) return 'run';
+    movePromptShown = true;
+    return new Promise<'move' | 'quit' | 'run'>((resolve) => {
+        const win = createMoveToApplicationsWindow();
+        let resolved = false;
+        const finish = (choice: 'move' | 'quit' | 'run') => {
+            if (resolved) return;
+            resolved = true;
+            if (!win.isDestroyed()) win.close();
+            resolve(choice);
+        };
+
+        const handler = (_event: any, choice: 'move' | 'quit' | 'run') => {
+            finish(choice);
+        };
+
+        ipcMain.once('move-to-applications-choice', handler);
+
+        win.on('closed', () => {
+            finish('quit');
+        });
+    });
+}
+
+async function handleMoveToApplicationsFlow() {
+    const choice = await promptMoveToApplications();
+    if (choice === 'quit') {
+        app.quit();
+        return false;
+    }
+    if (choice === 'move') {
+        try {
+            const moved = app.moveToApplicationsFolder({
+                conflictHandler: (conflictType) => {
+                    if (conflictType === 'exists') return true;
+                    return true;
+                }
+            });
+            if (moved) {
+                app.relaunch();
+                app.exit(0);
+                return false;
+            }
+        } catch (e) {
+            log(`Move to Applications failed: ${e}`, 'ERROR');
+        }
+    }
+    return true;
+}
+
+function parseSecondInstancePayload(argv: string[], cwd: string) {
+    return {
+        argv: Array.isArray(argv) ? argv : [],
+        cwd: cwd || process.cwd(),
+        timestamp: Date.now()
+    };
+}
+
+function flushOpenRequests() {
+    if (!rendererReady || !mainWindow || mainWindow.isDestroyed()) return;
+    while (openRequestQueue.length > 0) {
+        const payload = openRequestQueue.shift();
+        if (payload) {
+            sendToRenderer('app:open-request', payload);
+        }
+    }
+}
+
+function enqueueOpenRequest(payload: { argv: string[]; cwd: string; timestamp: number }) {
+    openRequestQueue.push(payload);
+    flushOpenRequests();
+}
 
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
     app.quit();
 } else {
-    app.on('second-instance', () => {
+    app.on('second-instance', (_event, argv, workingDirectory) => {
         if (mainWindow) {
             if (mainWindow.isMinimized()) mainWindow.restore();
             mainWindow.focus();
+        } else {
+            app.whenReady().then(() => createWindow());
         }
+        const payload = parseSecondInstancePayload(argv, workingDirectory);
+        enqueueOpenRequest(payload);
     });
 }
 
@@ -127,6 +350,7 @@ function createWindow() {
             mainWindow.show();
             mainWindow.focus();
         }
+        flushOpenRequests();
     });
 
     mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
@@ -136,24 +360,33 @@ function createWindow() {
 
 app.whenReady().then(async () => {
     log('App ready');
-    setupIPC();
-    createSplashWindow();
-
-    // Start backend
-    try {
-        startPythonServer();
-    } catch (e) {
-        log(`Failed to start backend: ${e}`, 'ERROR');
+    if (process.platform === 'darwin') {
+        const continueLaunch = await handleMoveToApplicationsFlow();
+        if (!continueLaunch) return;
     }
-
-    // Wait for splash or directly create window if dev (actually we simulate splash)
-    setTimeout(() => {
-        createWindow();
-    }, 2000);
+    setupIPC();
+    const firstRun = isFirstRun();
+    if (firstRun) {
+        createSplashWindow();
+        const ok = await runInitialization();
+        if (!ok) return;
+    } else {
+        try {
+            startPythonServer();
+        } catch (e) {
+            log(`Failed to start backend: ${e}`, 'ERROR');
+        }
+    }
+    createWindow();
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
+});
+
+ipcMain.on('renderer-ready', () => {
+    rendererReady = true;
+    flushOpenRequests();
 });
 
 app.on('window-all-closed', () => {
@@ -165,4 +398,8 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
     log('App quitting...');
     killPythonServer();
+});
+
+ipcMain.on('splash-quit', () => {
+    app.quit();
 });

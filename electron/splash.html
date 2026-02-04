@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loading Archiver</title>
+    <title>Setting things up</title>
     <style>
         * {
             margin: 0;
@@ -73,58 +73,95 @@
         }
 
         h1 {
-            font-size: 28px;
+            font-size: 24px;
             font-weight: 700;
-            margin-bottom: 12px;
-            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+            letter-spacing: -0.3px;
             color: #ff2aa8;
-            /* --pink */
             text-shadow: 0 0 12px rgba(255, 42, 168, 0.3);
         }
 
         .loading-text {
             font-size: 14px;
-            opacity: 0.7;
-            margin-bottom: 24px;
+            opacity: 0.8;
+            margin-bottom: 18px;
         }
 
         .progress-bar {
-            width: 240px;
+            width: 260px;
             height: 4px;
             background: rgba(255, 255, 255, 0.08);
             border-radius: 10px;
-            margin: 0 auto;
+            margin: 0 auto 16px;
             overflow: hidden;
         }
 
         .progress-fill {
             height: 100%;
             background: linear-gradient(90deg, #ff2aa8, #7b5cff);
-            /* pink to violet */
             border-radius: 10px;
-            width: 40%;
-            animation: loading 2s ease-in-out infinite;
+            width: 0%;
+            transition: width 0.3s ease-out;
         }
 
-        @keyframes loading {
-            0% {
-                transform: translateX(-100%);
-            }
-
-            100% {
-                transform: translateX(250%);
-            }
+        .stage-list {
+            text-align: left;
+            margin: 0 auto;
+            width: 260px;
+            color: #b1b4c3;
+            font-size: 12px;
+            line-height: 1.6;
         }
 
-        .status {
-            margin-top: 20px;
-            font-size: 11px;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: #34f2ff;
-            /* --cyan */
-            opacity: 0.8;
+        .stage {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .stage.active .dot {
+            background: #34f2ff;
+            box-shadow: 0 0 8px rgba(52, 242, 255, 0.6);
+        }
+
+        .stage.active {
+            color: #e2e4e9;
+        }
+
+        .error {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 10px;
+            background: rgba(255, 0, 0, 0.08);
+            border: 1px solid rgba(255, 0, 0, 0.2);
+            color: #ffb3b3;
+            font-size: 12px;
+            display: none;
+        }
+
+        .error-actions {
+            margin-top: 12px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .btn {
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.05);
+            color: #e2e4e9;
+            border-radius: 8px;
+            padding: 6px 10px;
             font-weight: 600;
+            cursor: pointer;
+            -webkit-app-region: no-drag;
         }
     </style>
 </head>
@@ -134,41 +171,70 @@
         <div class="app-icon">
             <img src="../assets/icons/app-icon.png" alt="Icon">
         </div>
-        <h1>ARCHIVER</h1>
-        <p class="loading-text">Initializing Secure Environment</p>
+        <h1>Setting things up</h1>
+        <p class="loading-text">Preparing your local archive</p>
         <div class="progress-bar">
             <div class="progress-fill"></div>
         </div>
-        <p class="status" id="status">ENCRYPTING CONNECTION...</p>
+        <div class="stage-list">
+            <div class="stage" data-stage="Preparing folders"><span class="dot"></span>Preparing folders</div>
+            <div class="stage" data-stage="Starting backend"><span class="dot"></span>Starting backend</div>
+            <div class="stage" data-stage="Checking readiness"><span class="dot"></span>Checking readiness</div>
+            <div class="stage" data-stage="Finalizing"><span class="dot"></span>Finalizing</div>
+        </div>
+        <div class="error" id="error">
+            <div id="error-title">Initialization failed</div>
+            <div id="error-detail" style="margin-top:6px;white-space:pre-wrap;"></div>
+            <div class="error-actions">
+                <button class="btn" id="copy">Copy diagnostics</button>
+                <button class="btn" id="quit">Quit</button>
+            </div>
+        </div>
     </div>
 
     <script>
-        const { ipcRenderer } = require('electron');
+        const { ipcRenderer, clipboard } = require('electron');
 
-        const statusEl = document.getElementById('status');
         const progressFill = document.querySelector('.progress-fill');
-        const loadingText = document.querySelector('.loading-text');
+        const stages = Array.from(document.querySelectorAll('.stage'));
+        const errorBox = document.getElementById('error');
+        const errorTitle = document.getElementById('error-title');
+        const errorDetail = document.getElementById('error-detail');
+        const copyBtn = document.getElementById('copy');
+        const quitBtn = document.getElementById('quit');
 
-        // Remove infinite animation and set initial state
-        progressFill.style.animation = 'none';
-        progressFill.style.width = '2%';
-        progressFill.style.transition = 'width 0.3s ease-out';
+        const stageOrder = ['Preparing folders', 'Starting backend', 'Checking readiness', 'Finalizing'];
 
-        ipcRenderer.on('splash-progress', (event, { message, percent }) => {
-            if (message) {
-                statusEl.textContent = message.toUpperCase();
+        function setStage(stage) {
+            const idx = Math.max(0, stageOrder.indexOf(stage));
+            const percent = ((idx + 1) / stageOrder.length) * 100;
+            progressFill.style.width = `${percent}%`;
+            stages.forEach((el) => {
+                const isActive = el.getAttribute('data-stage') === stage;
+                el.classList.toggle('active', isActive);
+            });
+        }
+
+        ipcRenderer.on('splash-progress', (event, payload) => {
+            if (payload?.status === 'error') {
+                errorTitle.textContent = payload.error || 'Initialization failed';
+                errorDetail.textContent = payload.detail || '';
+                errorBox.style.display = 'block';
+                return;
             }
-            if (percent !== undefined) {
-                progressFill.style.width = `${percent}%`;
+            if (payload?.stage) {
+                setStage(payload.stage);
             }
         });
 
-        // Fallback animation if no IPC received quickly
-        setTimeout(() => {
-            if (progressFill.style.width === '2%') {
-                progressFill.style.animation = 'loading 2s ease-in-out infinite';
-            }
-        }, 3000);
+        copyBtn?.addEventListener('click', () => {
+            const text = `${errorTitle.textContent}\n${errorDetail.textContent}`;
+            clipboard.writeText(text);
+        });
+
+        quitBtn?.addEventListener('click', () => {
+            ipcRenderer.send('splash-quit');
+        });
     </script>
 </body>
 
