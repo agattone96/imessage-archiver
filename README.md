@@ -71,6 +71,8 @@ npm run start
 
 `npm run dev` starts Vite and continuously compiles Electron TypeScript. `npm run start` launches Electron.
 
+Frontend changes hot-reload in the Electron app. For Electron main-process changes (files in `electron/`), restart the app from Terminal B by running `npm run start` again.
+
 ---
 
 ## 🏗️ Build and package
