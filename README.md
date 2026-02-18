@@ -1,91 +1,49 @@
 # 📦 iMessage Archiver
 
-A polished desktop application for browsing, searching, and exporting iMessage history locally on your Mac.
+A desktop app for browsing, searching, and exporting iMessage history locally on macOS.
 
 > **Stack:** Electron + React + FastAPI + SQLite
 
----
-
-## ✨ What this app does
-
-- Archive conversations from your local iMessage database.
-- Explore chats and messages in a modern desktop UI.
-- Export chat data to **CSV**, **JSON**, or **Markdown**.
-- View conversation-level analytics and global stats.
-
----
-
-## 🧱 Architecture
-
-| Layer | Technology | Purpose |
-|---|---|---|
-| Desktop shell | Electron | Native desktop windowing, lifecycle, packaging |
-| Frontend | React 18 + TypeScript + Vite + Tailwind | UI, routing, data display |
-| Backend API | FastAPI + Uvicorn | Data access, archive operations |
-| Data source | macOS `chat.db` (SQLite) | iMessage message/chat storage |
-
----
-
-## ✅ Prerequisites
-
-- **macOS** (required to access `~/Library/Messages/chat.db`)
-- **Node.js 18+**
-- **Python 3.10+**
-
----
-
-## 🚀 Development setup
-
-### 1) Install JavaScript dependencies
-
-From repository root:
+## Quickstart (copy/paste)
 
 ```bash
+git clone <repo-url>
+cd IMSGArchiver
+cp .env.example .env
 npm install
 cd frontend && npm install && cd ..
-```
-
-### 2) Install backend Python dependencies
-
-```bash
 python3 -m venv backend/venv
 source backend/venv/bin/activate
 pip install -r backend/requirements.txt
 ```
 
-> The Electron process uses `python3` in your environment. If using a virtualenv, run Electron commands from the activated shell.
+Run in two terminals:
 
-### 3) Run in development
-
-Use two terminals:
-
-**Terminal A (frontend + TypeScript watch):**
 ```bash
+# Terminal A
 npm run dev
-```
 
-**Terminal B (launch Electron app):**
-```bash
+# Terminal B
 npm run start
 ```
 
-`npm run dev` starts Vite and continuously compiles Electron TypeScript. `npm run start` launches Electron.
+## What this app does
 
-Frontend changes hot-reload in the Electron app. For Electron main-process changes (files in `electron/`), restart the app from Terminal B by running `npm run start` again.
+- Archive conversations from local iMessage data.
+- Explore chats and messages in a desktop UI.
+- Export chat data to CSV, JSON, or Markdown.
+- View conversation and global analytics.
 
----
+## Prerequisites
 
-## 🏗️ Build and package
+- macOS (required for `~/Library/Messages/chat.db` access)
+- Node.js 18+
+- Python 3.10+
 
-### Build app artifacts (no installer)
+## Build and package
 
 ```bash
 npm run build
-```
-
-### Create distributables
-
-```bash
 npm run dist
 ```
 
@@ -98,22 +56,19 @@ npm run dist:signed
 npm run dist:notarized
 ```
 
-Build output is written to `release/`.
+Build output: `release/`.
 
----
+## Configuration
 
-## 🔐 Signing / notarization environment variables
+Use `.env.example` as the source template:
 
-For signed/notarized macOS builds, configure:
+```bash
+cp .env.example .env
+```
 
-- `CSC_NAME` **or** `CSC_LINK` + `CSC_KEY_PASSWORD`
-- `APPLE_ID`
-- `APPLE_APP_SPECIFIC_PASSWORD`
-- `APPLE_TEAM_ID`
+Backend environment variables are defined in `backend/src/config.py` and documented in `backend/README.md`.
 
----
-
-## 📁 Project structure
+## Project structure
 
 ```text
 .
@@ -121,40 +76,32 @@ For signed/notarized macOS builds, configure:
 ├── frontend/   # React UI
 ├── backend/    # FastAPI service + archive engine
 ├── scripts/    # Build/install/utility scripts
+├── docs/       # Stable project docs + ADRs
 └── assets/     # App icons and branding
 ```
 
----
+## Repository docs
 
-## ⚙️ Backend environment configuration
+- Backend details: `backend/README.md`
+- Frontend details: `frontend/README.md`
+- Contribution guide: `CONTRIBUTING.md`
+- Security policy: `SECURITY.md`
+- Code of conduct: `CODE_OF_CONDUCT.md`
+- License: `LICENSE`
+- ADRs: `docs/adr/`
 
-To avoid documentation drift, backend runtime environment variables are maintained in **one place**:
-
-- See [`backend/README.md#environment-variables-single-source-of-truth`](backend/README.md#environment-variables-single-source-of-truth)
-
-The canonical implementation is `backend/src/config.py`.
-
----
-
-## 🩺 Troubleshooting
+## Troubleshooting
 
 ### Permission issues reading iMessage DB
 
 Grant **Full Disk Access** to:
 
-- Terminal (for development)
-- Archiver app (for packaged builds)
+- Terminal (development)
+- Archiver app (packaged builds)
 
-Path: **System Settings → Privacy & Security → Full Disk Access**.
+Path: System Settings → Privacy & Security → Full Disk Access.
 
 ### Backend fails to start
 
-- Confirm `python3` points to an environment with dependencies installed.
+- Confirm `python3` points to environment with dependencies installed.
 - Confirm no process is already bound to `127.0.0.1:8000`.
-
----
-
-## 📚 Additional docs
-
-- Backend details: [`backend/README.md`](backend/README.md)
-- Frontend details: [`frontend/README.md`](frontend/README.md)
